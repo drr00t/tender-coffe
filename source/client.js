@@ -5,7 +5,6 @@ var Connection = require("./connection").Connection;
 // "tcp://127.0.0.1:46658" -> {host,port}
 // "unix://path" -> {path}
 function ParseAddr(addr) {
-  
 }
 
 // TODO: Handle auto-reconnect & re-sending requests.
