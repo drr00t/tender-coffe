@@ -1,0 +1,9 @@
+{
+  "name": "tendercoffe",
+  "version": "0.0.1",
+  "description": "ABCI test, in code and coffe",
+  "main": "app.js",
+  "dependencies": {
+    "js-abci": "../"
+  }
+}
