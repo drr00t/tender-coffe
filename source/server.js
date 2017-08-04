@@ -1,6 +1,7 @@
 var net = require("net");
 var types = require("./types");
 var Connection = require("./connection").Connection;
+var DougReceiver = require("./dougsanSource/dougServer");
 
 // Takes an application and handles ABCI connection
 // which invoke methods on the app
@@ -14,8 +15,8 @@ function Server(app) {
   this.createServer();
 }
 
-Server.prototype.createServer = function() {
-  
+Server.prototype.createServer = function(){
+ //se conecta
 }
 
 // Wrap a function to only be called once.
