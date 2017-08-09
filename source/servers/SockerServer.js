@@ -1,6 +1,7 @@
+"use strict";
+
 const
   net = require("net"),
-  wire = require("js-wire"),
   EventEmitter = require("events").EventEmitter,
   types = require("../types"),
   // connection = require("./connection").Connection,
@@ -11,26 +12,68 @@ const
 ;
 
   class Connection extends EventEmitter {
+      
     constructor(app,conn) {
-      let self = this;
-      self.recvBuf = new Buffer(0);
-      self.sendBuf = new Buffer(0);
-      self.waitingResult = false;
-      self.app = app;
-      self.conn = conn;
+      super()
+      this.recvBuf = new Buffer(0);
+      this.sendBuf = new Buffer(0);
+      this.waitingResult = false;
+      this.app = app;
+      this.conn = conn;
 
-      self.conn.on('data',(data)=>{
+      this.conn.on('data',(data)=>{
           console.log('data received: {0}', data);
 
-          let req = types.Request.decode(data);
-          let reqType = req.value;
+          this.receiveData(data);
 
-          self.app.emit(reqType,req.value.message);
       });
 
-      self.conn.on('end', function() {
+      this.conn.on('end', function() {
           console.log("connection ended.");
       });
+    }
+
+    receiveData(data){
+      let self = this;
+      let msgBytes;
+      if (data.length > 0) {
+        self.recvBuf = Buffer.concat([self.recvBuf, new Buffer(data)]);
+      }
+      if (this.waitingResult) {
+        return;
+      }
+      
+      let rWire = undefined;
+      try {
+
+        rWire = new wire.Reader(self.recvBuf);
+        msgBytes = rWire.readByteArray();
+
+        self.recvBuf = rWire.buf.slice(rWire.offset);
+        self.waitingResult = true;
+        self.conn.pause();
+
+        let req = types.Request.decode(data);
+        let reqType = req.value;
+
+        self.app.emit(reqType, self,!req.value?req.value: req.value.message);
+
+        self.waitingResult = false;
+        self.conn.resume();
+        if (self.recvBuf.length > 0) {
+          self.receiveData("");
+        }
+
+      } catch(e) {
+        console.log('wire decode failed: ' + e);
+
+        if (e.stack) {
+          console.log("FATAL ERROR STACK: ", e.stack);
+        }
+        console.log("FATAL ERROR: ", e);
+
+        return;
+      }
     }
 
     write(msg){
@@ -42,11 +85,11 @@ const
       this.sendBuf = Buffer.concat([this.sendBuf, w.getBuffer()]);
       
       if (this.sendBuf.length >= maxWriteBufferLength) {
-          console.log('byte limite achieved: ' 
-          + maxWriteBufferLength + ' user data: ' + this.sendBuf.length);
+          console.log('byte limit achieved: ' +
+            maxWriteBufferLength + ' user data: ' + this.sendBuf.length);
       }
       let n = this.conn.write(this.sendBuf);
-      console.log('bytes tranfered: : ' + n);
+      console.log('bytes tranfered: ' + n);
       this.sendBuf = new Buffer(0);
     }
 
@@ -56,72 +99,68 @@ const
   }
 
   class Application extends EventEmitter{
-    constructor(conn){
-      this.conn = conn;
-    }
+    constructor(){
+      super()
 
-    //mempool 
-    checkTx(req){
-      console.log('data checkTx: {0}', req);
+      this.on('checkTx',(conn, req)=>{
+        console.log('data checkTx: {0}', req);
         let resMessageType = types.resMessageLookup['checkTx'];
         let  res = new types.Response();
         let  resValue = new resMessageType(resObj);
         res.set(msgType, resValue);
-        this.conn.writeMessage(res);
-    }
-
-    //consensus
-    deliverTx(req){
-      console.log('data deliverTx: {0}', req);
-
-    }
-    initChain(req){
-      console.log('data initChain: {0}', req);
-
-    }
-    beginBlock(req){
-      console.log('data beginBlock: {0}', req);
-
-    }
-    endBlock(req){
-      console.log('data endBlock: {0}', req);
-
-    }
-    commit(req){
-      console.log('data commit: {0}', req);
-
-    }
-
-    //query
-    query(req){
-      console.log('data query: {0}', req);
-
-    }
-    info(req){
-      console.log('data info: {0}', req);
-    }
-
-    echo(req){
-      console.log('data echo: {0}', req);
-      var res = new types.Response({
-          echo: new types.ResponseEcho({message: req.echo.message})
+        conn.writeMessage(res);
       });
 
-      this.conn.write(res);
-    }
-
-    setOption(req){
-      console.log('data setOption: {0}', req);
-    }
-
-    flush(req){
-      console.log('data flush: {0}', req);
-      var res = new types.Response({
-        flush: new types.ResponseFlush(),
+      this.on('deliverTx',(conn, req)=>{
+        console.log('data deliverTx: {0}', req);
       });
 
-      this.conn.writeMessage(res);
-      this.conn.flush();
+      this.on('initChain',(conn, req)=>{
+        console.log('data initChain: {0}', req);
+      });
+
+      this.on('beginBlock',(conn, req)=>{
+        console.log('data beginBlock: {0}', req);
+      });
+
+      this.on('endBlock',(conn, req)=>{
+        console.log('data endBlock: {0}', req);
+      });
+
+      this.on('commit',(conn, req)=>{
+        console.log('data commit: {0}', req);
+      });
+
+      this.on('query',(conn, req)=>{
+        console.log('data query: {0}', req);
+      });
+
+      this.on('info',(conn, req)=>{
+        console.log('data info: {0}', req);
+      });
+
+      this.on('echo',(conn, req)=>{
+        console.log('data echo: {0}', req);
+        var res = new types.Response({
+            echo: new types.ResponseEcho({message: req.echo.message})
+        });
+
+        conn.write(res);        
+      });
+
+      this.on('setOption',(conn, req)=>{
+        console.log('data setOption: {0}', req);
+      });
+
+      this.on('flush',(conn, req)=>{
+        console.log('data flush: {0}', req);
+        var res = new types.Response({
+          flush: new types.ResponseFlush(),
+        });
+
+        conn.write(res);
+        conn.flush();
+      });
     }
   }
 
@@ -147,7 +186,7 @@ const
     }
   }
 
-new Server().start();
+new Server(new Application()).start();
 
 // module.exports = {
 //   abci: '',
