@@ -11,14 +11,14 @@ var types = builder.build("types");
 
 var reqMethodLookup = {};
 reqMethodLookup["info"]        = "info";
-reqMethodLookup["set_option"]  = "setOption";
-reqMethodLookup["deliver_tx"]  = "deliverTx";
-reqMethodLookup["check_tx"]    = "checkTx";
+reqMethodLookup["set_option"]  = "set_option";
+reqMethodLookup["deliver_tx"]  = "deliver_tx";
+reqMethodLookup["check_tx"]    = "check_tx";
 reqMethodLookup["commit"]      = "commit";
 reqMethodLookup["query"]       = "query";
-reqMethodLookup["init_chain"]  = "initChain";
-reqMethodLookup["begin_block"] = "beginBlock";
-reqMethodLookup["end_block"]   = "endBlock";
+reqMethodLookup["init_chain"]  = "init_chain";
+reqMethodLookup["begin_block"] = "begin_block";
+reqMethodLookup["end_block"]   = "end_block";
 
 var resMessageLookup = {};
 resMessageLookup["info"]        = types.ResponseInfo;

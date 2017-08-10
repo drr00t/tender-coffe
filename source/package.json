@@ -4,7 +4,8 @@
   "description": "Javascript ABCI libraries",
   "main": "index.js",
   "dependencies": {
+    "js-wire": "~0.0.3",
     "protobufjs": "~5.0.1",
-    "js-wire": "~0.0.3"
+    "winston": "^2.3.1"
   }
 }
