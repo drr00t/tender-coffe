@@ -4,8 +4,6 @@ const
   net = require("net"),
   EventEmitter = require("events").EventEmitter,
   types = require("../types"),
-  // connection = require("./connection").Connection,
-  OriginalServer = require("../server"),
   wire = require("js-wire"),
   util = require('util'),
 
@@ -21,10 +19,6 @@ const
       this.waitingResult = false;
       this.app = app;
       this.conn = conn;
-
-      // console.log('types: %j', types);
-      console.log('request types: %j', types.reqMethodLookup);
-      console.log('response types: %j', types.resMessageLookup);
 
       this.conn.on('data',(data)=>{
           this.receiveData(data);
@@ -44,7 +38,7 @@ const
       let msgBytes;
       let bfData = Buffer.from(data);
 
-      console.log('data received: %j', bfData);
+      // console.log('data received: %j', bfData);
 
       if (bfData.length > 0) {
         self.recvBuf = Buffer.concat([self.recvBuf, bfData]);
@@ -52,15 +46,17 @@ const
       }
       if (this.waitingResult) {
         return;
+
       }
       
       let rWire = undefined;
+
       try {
 
         rWire = new wire.Reader(self.recvBuf);
         msgBytes = rWire.readByteArray();
         
-        console.log('wire decode: %j', msgBytes);
+        // console.log('wire decode: %j', msgBytes);
 
         self.recvBuf = rWire.buf.slice(rWire.offset);
         self.waitingResult = true;
@@ -68,11 +64,11 @@ const
 
         let req = types.Request.decode(msgBytes);
 
-        console.log('message decoded: %j', req);
+        // console.log('message decoded: %j', req);
 
         let reqType = req.value;
 
-        console.log('message type {%s} data: %j', reqType, req[reqType]);
+        // console.log('message type {%s} data: %j', reqType, req[reqType]);
 
         self.app.emit(reqType, self, req[reqType]);
 
@@ -95,9 +91,11 @@ const
     }
 
     write(msg){
+      // console.log("writing msg: %j", msg);
+
       let msgBytes = msg.encode().toBuffer();
       let msgLength = wire.uvarintSize(msgBytes.length);
-      let buf = Buffer.from(1+msgLength+msgBytes.length);
+      let buf = Buffer.alloc(1+msgLength+msgBytes.length);
       let w = new wire.Writer(buf);
       w.writeByteArray(msgBytes); // TODO technically should be writeVarint
       this.sendBuf = Buffer.concat([this.sendBuf, w.getBuffer()]);
@@ -122,15 +120,32 @@ const
 
       this.on('check_tx',(conn, req)=>{
         console.log('data checkTx: %j', req);
+
+        // CodeType          code        = 1;
+        // bytes             data        = 2;
+        // string log = 3;
+
         let resMessageType = types.resMessageLookup['check_tx'];
-        let  res = new types.Response();
-        let  resValue = new resMessageType({"resObj":"data"});
-        res.set(msgType, resValue);
-        conn.writeMessage(res);
+        let  res = new types.Response({
+          check_tx: new types.ResponseCheckTx({
+            code: types.CodeType.OK,
+            data: req.tx,
+            log:"OK"
+          })
+        });
+        conn.write(res);
       });
 
       this.on('deliver_tx',(conn, req)=>{
         console.log('data deliverTx: %j', req);
+        let  res = new types.Response({
+          deliver_tx: new types.ResponseDeliverTx({
+            code: types.CodeType.OK,
+            data: req.tx,
+            log:"OK"
+          })
+        });
+        conn.write(res);
       });
 
       this.on('init_chain',(conn, req)=>{
@@ -143,14 +158,55 @@ const
 
       this.on('end_block',(conn, req)=>{
         console.log('data endBlock:  %j', req);
+        
+        // let res = new types.Response({
+        //     end_block: new types.ResponseEndBlock({
+        //       diffs: 
+        //     })
+        // });
+
+        // conn.write(res);
       });
 
       this.on('commit',(conn, req)=>{
         console.log('data commit:  %j', req);
+        // CodeType          code        = 1;
+        // bytes             data        = 2;
+        // string log = 3;
+
+        let res = new types.Response({
+            commit: new types.ResponseCommit({
+              code: types.CodeType.OK,
+              data:Buffer.from("data"),
+              log:"data saved"
+            })
+        });
+
+        conn.write(res);
       });
 
       this.on('query',(conn, req)=>{
         console.log('data query:  %j', req);
+      // CodeType          code        = 1;
+      // int64             index       = 2;
+      // bytes             key         = 3;
+      // bytes             value       = 4;
+      // bytes             proof       = 5;
+      // uint64            height = 6;
+      // string log = 7;
+        let res = new types.Response({
+            query: new types.ResponseQuery({
+              code:types.CodeType.OK,
+              index:10,
+              key:Buffer.from("my_key"),
+              value:Buffer.from("my_data"),
+              proof:Buffer.alloc(0),
+              height:1,
+              log:"OK"
+            })
+        });
+
+        conn.write(res);
       });
 
       this.on('info',(conn, req)=>{
@@ -162,7 +218,7 @@ const
         // bytes last_block_app_hash = 4;
   
         let res = new types.Response({
-            echo: new types.ResponseInfo({
+            info: new types.ResponseInfo({
               data: "",
               version:"",
               last_block_height:0,
@@ -184,14 +240,15 @@ const
       this.on('set_option',(conn, req)=>{
         console.log('data setOption:  %j', req);
         let res = new types.Response({
-            echo: new types.ResponseSetOption({log:"OK"})
+            set_option: new types.ResponseSetOption({log:"OK"})
         });
+        conn.write(res);
       });
 
       this.on('flush',(conn, req)=>{
         console.log('data flush');
         let res = new types.Response({
-          flush: new types.ResponseFlush(),
+          flush: new types.ResponseFlush()
         });
         conn.write(res);
       });
