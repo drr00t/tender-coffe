@@ -115,6 +115,7 @@ const
   }
 
   class Application extends EventEmitter{
+
     constructor(){
       super()
 
@@ -150,22 +151,30 @@ const
 
       this.on('init_chain',(conn, req)=>{
         console.log('data initChain: %j', req);
+        let res = new types.Response({
+            init_chain: new types.ResponseInitChain()
+        });
+
+        conn.write(res);
       });
 
       this.on('begin_block',(conn, req)=>{
         console.log('data beginBlock: %j', req);
+        let res = new types.Response({
+            begin_block: new types.ResponseBeginBlock()
+        });
+
+        conn.write(res);
       });
 
       this.on('end_block',(conn, req)=>{
         console.log('data endBlock:  %j', req);
         
-        // let res = new types.Response({
-        //     end_block: new types.ResponseEndBlock({
-        //       diffs: 
-        //     })
-        // });
+        let res = new types.Response({
+            end_block: new types.ResponseEndBlock()
+        });
 
-        // conn.write(res);
+        conn.write(res);
       });
 
       this.on('commit',(conn, req)=>{
@@ -217,15 +226,15 @@ const
         // uint64 last_block_height = 3;
         // bytes last_block_app_hash = 4;
   
-        let res = new types.Response({
-            info: new types.ResponseInfo({
-              data: "",
-              version:"",
-              last_block_height:0,
-              last_block_app_hash:Buffer.alloc(40)
-            })
-        });
-        conn.write(res);        
+        // let res = new types.Response({
+        //     info: new types.ResponseInfo({
+        //       data: "",
+        //       version:"",
+        //       last_block_height:0,
+        //       last_block_app_hash:Buffer.alloc(0)
+        //     })
+        // });
+        // conn.write(res);        
       });
 
       this.on('echo',(conn, req)=>{
